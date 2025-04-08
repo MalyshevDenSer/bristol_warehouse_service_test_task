@@ -1,3 +1,5 @@
 fastapi
 sqlalchemy
 python-dotenv
+uvicorn[standard]
+greenlet
