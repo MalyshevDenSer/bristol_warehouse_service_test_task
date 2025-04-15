@@ -3,3 +3,11 @@ sqlalchemy
 python-dotenv
 uvicorn[standard]
 greenlet
+aiokafka>=0.8
+asyncpg
+redis
+fastapi-cache2
+prometheus_fastapi_instrumentator
+pytest
+pytest-asyncio
+httpx

@@ -7,11 +7,22 @@ from app.models import MovementEvent
 from app.schemas import KafkaEnvelope, MovementResponse, StockResponse
 from sqlalchemy import select, func, case
 from uuid import UUID
+from app.handler import handle_event
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+import redis.asyncio as redis
+from app.config import REDIS_HOST, REDIS_PORT, REDIS_DB
+from fastapi_cache.decorator import cache
+from prometheus_fastapi_instrumentator import Instrumentator
+from starlette.middleware.base import BaseHTTPMiddleware
+import time
 
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+instrumentator = Instrumentator()
 
 
 @asynccontextmanager
@@ -19,11 +30,37 @@ async def lifespan(app: FastAPI):
     logging.info("Initializing database...")
     await init_db()
     logging.info("Database initialized.")
+
+    logging.info("Initializing Redis cache...")
+    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+    FastAPICache.init(RedisBackend(redis_client), prefix="fastapi-cache")
+    logging.info("Redis cache initialized.")
+
     yield
     logging.info("Shutting down...")
 
 
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        logging.info(
+            f"{request.method} {request.url.path} - "
+            f"{response.status_code} - {process_time:.2f}ms - "
+            f"IP: {request.client.host}"
+        )
+        return response
+
+
 app = FastAPI(title="Warehouse Monitoring Service", lifespan=lifespan)
+instrumentator.instrument(app).expose(app)
+app.add_middleware(LoggingMiddleware)
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 
 @app.post("/simulate_kafka")
@@ -31,24 +68,11 @@ async def simulate_kafka_event(
     envelope: KafkaEnvelope,
     db: AsyncSession = Depends(get_db)
 ):
-    exists = await db.scalar(
-        select(MovementEvent.id).where(MovementEvent.message_id == envelope.id)
-    )
-    if exists:
-        raise HTTPException(status_code=409, detail="Duplicate message_id")
-
-    event = MovementEvent(
-        message_id=envelope.id,
-        movement_id=envelope.data.movement_id,
-        warehouse_id=envelope.data.warehouse_id,
-        product_id=envelope.data.product_id,
-        timestamp=envelope.data.timestamp,
-        event=envelope.data.event,
-        quantity=envelope.data.quantity,
-    )
-
-    db.add(event)
-    await db.commit()
+    backend = FastAPICache.get_backend()
+    try:
+        await handle_event(envelope, db, backend=backend)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return {"status": "ok"}
 
 
@@ -56,6 +80,7 @@ async def simulate_kafka_event(
     "/warehouses/{warehouse_id}/products/{product_id}",
     response_model=StockResponse
 )
+@cache(expire=60)
 async def get_stock(
     warehouse_id: UUID,
     product_id: UUID,
@@ -83,7 +108,8 @@ async def get_stock(
 
     if raw_quantity < 0:
         logging.warning(
-            f"Отрицательное значение остатков: склад {warehouse_id}, товар {product_id}, рассчитано {raw_quantity}, возвращаю 0"
+            f"Отрицательное значение остатков: склад {warehouse_id}, товар {product_id}, "
+            f"рассчитано {raw_quantity}, возвращаю 0"
         )
 
     return StockResponse(
@@ -94,6 +120,7 @@ async def get_stock(
 
 
 @app.get("/movements/{movement_id}", response_model=MovementResponse)
+@cache(expire=60)
 async def get_movement(
     movement_id: UUID,
     db: AsyncSession = Depends(get_db)
