@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
-from warehouse_service.schemas import KafkaEnvelope
-from kafka_utils.producer import KafkaProducerWrapper
-from kafka_utils.db import handle_event
-from warehouse_service.db import get_db
-from warehouse_service.config import KAFKA_TOPIC
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi_cache import FastAPICache
 import logging
+
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi import Request
+from fastapi_cache import FastAPICache
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from kafka_utils.db import handle_event
+from kafka_utils.producer import KafkaProducerWrapper
+from warehouse_service.config import KAFKA_TOPIC
+from warehouse_service.db import get_db
+from warehouse_service.schemas import KafkaEnvelope
+
 logger = logging.getLogger("warehouse_service.api.debug")
 
 router = APIRouter(prefix="/debug", tags=["debug"])

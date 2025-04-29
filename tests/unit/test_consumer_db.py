@@ -1,11 +1,12 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from kafka_utils.db import handle_event
-
 from datetime import datetime, timezone
-from warehouse_service.schemas import KafkaEnvelope, KafkaEventData
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.exc import IntegrityError
+
+from kafka_utils.db import handle_event
+from warehouse_service.schemas import KafkaEnvelope, KafkaEventData
 
 
 def _fake_envelope(event: str = "arrival", duplicate=False):
@@ -33,16 +34,14 @@ def _fake_envelope(event: str = "arrival", duplicate=False):
 
 
 def _integrity_error(pg_msg: str) -> IntegrityError:
-    """Генерируем IntegrityError с нужным текстом postgres-ошибки."""
     class _OrigExc(Exception):
         def __str__(self):
             return pg_msg
-    return IntegrityError("stmt", "params", _OrigExc())  # type: ignore
+    return IntegrityError("stmt", "params", _OrigExc())
 
 
 @pytest.mark.asyncio
 async def test_duplicate_message_id():
-    """Дубликат message_id → ValueError."""
     db = AsyncMock()
     db.add = MagicMock()
     # commit бросает PG-ошибку по уникальному индексу message_id
@@ -57,7 +56,6 @@ async def test_duplicate_message_id():
 
 @pytest.mark.asyncio
 async def test_duplicate_event():
-    """Повторное arrival/departure для того же movement_id."""
     db = AsyncMock()
     db.add = MagicMock()
     db.commit.side_effect = _integrity_error("uix_movement_event_event_type")
@@ -70,7 +68,6 @@ async def test_duplicate_event():
 
 @pytest.mark.asyncio
 async def test_success_adds_and_commits():
-    """Нормальный happy-path: insert + 2 cache clear."""
     db = AsyncMock()
     db.add = MagicMock()           # add — синхронный
     backend = AsyncMock()
@@ -85,7 +82,6 @@ async def test_success_adds_and_commits():
 
 @pytest.mark.asyncio
 async def test_handle_event_no_backend():
-    """backend=None не должен ломать вызов."""
     db = AsyncMock()
     db.add = MagicMock()
 
@@ -96,7 +92,6 @@ async def test_handle_event_no_backend():
 
 @pytest.mark.asyncio
 async def test_duplicate_event_raises_text():
-    """Проверяем текст исключения для дубликата event."""
     db = AsyncMock()
     db.add = MagicMock()
     db.commit.side_effect = _integrity_error("uix_movement_event_event_type")

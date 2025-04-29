@@ -1,16 +1,16 @@
 import asyncio
 import json
+
+import redis.asyncio as redis
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError
-
-from warehouse_service.config import KAFKA_URL, KAFKA_TOPIC
+from fastapi_cache.backends.redis import RedisBackend
 
 from kafka_utils.db import handle_event, engine, SessionLocal
-from warehouse_service.schemas import KafkaEnvelope
-from warehouse_service.logger import setup_logger
+from warehouse_service.config import KAFKA_URL, KAFKA_TOPIC
 from warehouse_service.config import REDIS_HOST, REDIS_PORT, REDIS_DB
-import redis.asyncio as redis
-from fastapi_cache.backends.redis import RedisBackend
+from warehouse_service.logger import setup_logger
+from warehouse_service.schemas import KafkaEnvelope
 
 logger = setup_logger(__name__)
 logger.debug("Kafka consumer initialized")

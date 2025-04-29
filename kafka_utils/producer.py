@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError, KafkaError
 
@@ -11,7 +12,7 @@ class KafkaProducerWrapper:
         bootstrap_servers: str,
         max_retries: int = 10,
         delay: float = 3.0,
-        send_timeout: float = 10.0,    # ← new default send timeout
+        send_timeout: float = 10.0,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.max_retries       = max_retries
@@ -20,7 +21,6 @@ class KafkaProducerWrapper:
         self.producer: AIOKafkaProducer | None = None
 
     async def connect(self):
-        """Инициализация Kafka-производителя с повторными попытками подключения."""
         attempt = 1
         while attempt <= self.max_retries:
             try:
@@ -41,7 +41,6 @@ class KafkaProducerWrapper:
         raise RuntimeError("Failed to connect to Kafka after multiple attempts.")
 
     async def disconnect(self):
-        """Остановка Kafka-производителя и перевод в состояние не подключён."""
         if self.producer:
             try:
                 await self.producer.stop()
@@ -53,7 +52,6 @@ class KafkaProducerWrapper:
                 self.producer = None
 
     async def send(self, topic: str, message: dict):
-        """Отправка сообщения в Kafka, but with a timeout so it can't hang forever."""
         if not self.producer:
             raise RuntimeError("Kafka producer is not started")
 

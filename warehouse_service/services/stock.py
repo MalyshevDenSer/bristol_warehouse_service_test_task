@@ -1,8 +1,10 @@
+from uuid import UUID
+
 from sqlalchemy import select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
-from warehouse_service.models import MovementEvent
-from uuid import UUID
+
 from warehouse_service.logger import setup_logger
+from warehouse_service.models import MovementEvent
 
 logger = setup_logger("warehouse_service.services.stock")
 

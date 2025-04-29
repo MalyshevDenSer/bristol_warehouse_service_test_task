@@ -1,6 +1,8 @@
-import pytest
-from uuid import uuid4
 from unittest.mock import AsyncMock
+from uuid import uuid4
+
+import pytest
+
 from warehouse_service.services.stock import calculate_stock
 
 

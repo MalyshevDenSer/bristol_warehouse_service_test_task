@@ -1,5 +1,3 @@
-# warehouse_service/logger.py
-
 import logging
 from typing import Union
 

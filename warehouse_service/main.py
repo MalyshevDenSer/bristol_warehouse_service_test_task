@@ -1,24 +1,26 @@
 from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import AsyncSession
-from warehouse_service.schemas import MovementResponse, StockResponse, ErrorResponse
+from typing import Union
 from uuid import UUID
+
+import redis.asyncio as redis
+from fastapi import FastAPI, Depends, Request
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
-import redis.asyncio as redis
-from warehouse_service.config import REDIS_HOST, REDIS_PORT, REDIS_DB, TTL
 from fastapi_cache.decorator import cache
 from prometheus_fastapi_instrumentator import Instrumentator
-from warehouse_service.config import KAFKA_URL
-from warehouse_service.db import prepare_database, get_db
-from kafka_utils.producer import KafkaProducerWrapper
-from warehouse_service.logger import setup_logger
-from warehouse_service.services.stock import calculate_stock
-from warehouse_service.services.movements import get_movement_info
-from warehouse_service.devtools.debug_routes import router as debug_router
-from fastapi import FastAPI, Depends, Request
-from typing import Union
+from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = setup_logger("warehouse_service.api.movements")
+from kafka_utils.producer import KafkaProducerWrapper
+from warehouse_service.config import KAFKA_URL
+from warehouse_service.config import REDIS_HOST, REDIS_PORT, REDIS_DB, TTL
+from warehouse_service.db import prepare_database, get_db
+from warehouse_service.devtools.debug_routes import router as debug_router
+from warehouse_service.logger import setup_logger
+from warehouse_service.schemas import MovementResponse, StockResponse, ErrorResponse
+from warehouse_service.services.movements import get_movement_info
+from warehouse_service.services.stock import calculate_stock
+
+logger = setup_logger("warehouse_service.api")
 instrumentator = Instrumentator()
 
 

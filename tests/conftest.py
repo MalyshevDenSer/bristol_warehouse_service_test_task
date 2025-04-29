@@ -1,14 +1,14 @@
+import logging
+
 import pytest_asyncio
+from asgi_lifespan import LifespanManager
 from httpx import AsyncClient, ASGITransport
 
-from warehouse_service.main import app as fastapi_app
-from warehouse_service.db import AsyncSessionLocal
 from kafka_utils.producer import KafkaProducerWrapper
-from asgi_lifespan import LifespanManager
 from warehouse_service.config import KAFKA_HOST, KAFKA_PORT
-import logging
+from warehouse_service.db import AsyncSessionLocal
 from warehouse_service.logger import setup_logger
-
+from warehouse_service.main import app as fastapi_app
 
 logger = setup_logger(name='tests')
 

@@ -1,9 +1,11 @@
-from warehouse_service.models import MovementEvent
-from warehouse_service.schemas import MovementResponse
+from uuid import UUID
+
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
-from fastapi.responses import JSONResponse
+
+from warehouse_service.models import MovementEvent
+from warehouse_service.schemas import MovementResponse
 
 
 async def get_movement_events(db, movement_id):

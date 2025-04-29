@@ -1,11 +1,13 @@
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from uuid import uuid4
 from unittest.mock import AsyncMock, patch
-from contextlib import asynccontextmanager
+from uuid import uuid4
+
 import pytest
+
+from kafka_utils import consumer
 from warehouse_service.schemas import KafkaEnvelope
-from kafka_utils import consumer  # 👈 импортируем модуль целиком
 
 
 def _raw_msg():

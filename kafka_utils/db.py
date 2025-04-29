@@ -1,15 +1,12 @@
+import logging
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from warehouse_service.config import DB_URL
+from warehouse_service.db import create_engine_and_session
 from warehouse_service.models import MovementEvent
 from warehouse_service.schemas import KafkaEnvelope
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-import logging
-from warehouse_service.db import create_engine_and_session
-from warehouse_service.config import DB_URL
-from warehouse_service.services.movements import get_movement_events
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy import insert, select, func
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 engine, SessionLocal = create_engine_and_session(
     DB_URL,
@@ -34,11 +31,11 @@ async def handle_event(envelope: KafkaEnvelope, db: AsyncSession, backend):
     db.add(event_row)
 
     try:
-        await db.commit()  # ← ОДИН запрос: INSERT
+        await db.commit()
     except IntegrityError as exc:
         await db.rollback()
 
-        # Выясняем, какое именно ограничение сработало
+        # выясняем, какое именно ограничение сработало
         msg = str(exc.orig)
         if "movement_events_message_id_key" in msg:
             raise ValueError(f"Message {envelope.id} already exists") from exc

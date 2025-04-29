@@ -1,9 +1,11 @@
 import asyncio
-import pytest
-from uuid import uuid4
 from datetime import datetime, timezone, timedelta
-from warehouse_service.config import KAFKA_TOPIC
+from uuid import uuid4
+
+import pytest
+
 from tests.conftest import logger
+from warehouse_service.config import KAFKA_TOPIC
 
 
 @pytest.mark.asyncio(loop_scope="session")

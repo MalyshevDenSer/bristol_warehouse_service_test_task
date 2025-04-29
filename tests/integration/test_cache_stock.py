@@ -1,14 +1,12 @@
-# tests/integration/test_cache_stock.py
-import logging
-
-import pytest
-from uuid import uuid4
+import asyncio
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
-from warehouse_service.models import MovementEvent
+import pytest
+
 from warehouse_service.config import KAFKA_TOPIC
-import asyncio
+from warehouse_service.models import MovementEvent
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -1,11 +1,14 @@
-import pytest
-from types import SimpleNamespace
-from uuid import uuid4
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock
-from warehouse_service.services.movements import get_movement_info
-from fastapi.responses import JSONResponse
 import json
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
+import pytest
+from fastapi.responses import JSONResponse
+
+from warehouse_service.services.movements import get_movement_info
+
 
 @pytest.mark.asyncio
 async def test_happy_path():

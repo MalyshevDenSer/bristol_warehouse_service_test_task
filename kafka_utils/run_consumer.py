@@ -1,5 +1,3 @@
-# run_consumer.py
-
 import asyncio
 
 from kafka_utils.consumer import consume
