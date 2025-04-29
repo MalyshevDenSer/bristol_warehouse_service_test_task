@@ -1,5 +1,8 @@
+# run_consumer.py
+
 import asyncio
-from app.kafka_consumer import consume
+
+from kafka_utils.consumer import consume
 
 if __name__ == "__main__":
     asyncio.run(consume())

@@ -1,19 +1,39 @@
 import pytest_asyncio
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.redis import RedisBackend
-import redis.asyncio as redis
-from app.config import REDIS_HOST, REDIS_PORT, REDIS_DB
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from app.models import Base
-from app.config import DB_URL
+from httpx import AsyncClient, ASGITransport
+
+from warehouse_service.main import app as fastapi_app
+from warehouse_service.db import AsyncSessionLocal
+from kafka_utils.producer import KafkaProducerWrapper
+from asgi_lifespan import LifespanManager
+from warehouse_service.config import KAFKA_HOST, KAFKA_PORT
+import logging
+from warehouse_service.logger import setup_logger
 
 
-@pytest_asyncio.fixture(scope="function")
-async def db():
-    engine = create_async_engine(DB_URL, echo=True)
-    session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with session_factory() as session:
+logger = setup_logger(name='tests')
+
+
+@pytest_asyncio.fixture(scope="session")
+async def db_session():
+    async with AsyncSessionLocal() as session:
         yield session
-    await engine.dispose()
+    await session.close()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def async_client():
+    logging.debug('LifespanManager is going to start now!')
+    async with LifespanManager(fastapi_app) as manager:
+        async with AsyncClient(
+            transport=ASGITransport(app=manager.app),
+            base_url="http://test",
+        ) as client:
+            yield client
+
+
+@pytest_asyncio.fixture(scope="session")
+async def kafka_producer():
+    wrapper = KafkaProducerWrapper(f"{KAFKA_HOST}:{KAFKA_PORT}")
+    await wrapper.connect()
+    yield wrapper
+    await wrapper.disconnect()

@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.dialects.postgresql import UUID as SQLUUID
 from sqlalchemy import DateTime
 from datetime import datetime
+from sqlalchemy import UniqueConstraint
 
 
 class Base(DeclarativeBase):
@@ -20,3 +21,9 @@ class MovementEvent(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     event: Mapped[str]
     quantity: Mapped[int]
+
+    __table_args__ = (
+        # «один тип события (`arrival`/`departure`) на одно движение»
+        UniqueConstraint("movement_id", "event",
+                         name="uix_movement_id_event_type"),
+    )

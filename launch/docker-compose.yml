@@ -1,0 +1,77 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "${KAFKA_HOST}:${KAFKA_PORT}", "--list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"   # Внешний доступ
+      - "29092:29092" # Внутренний доступ (Docker-сеть)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT_INTERNAL://0.0.0.0:29092,PLAINTEXT_EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_INTERNAL://kafka:29092,PLAINTEXT_EXTERNAL://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  postgres:
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+    image: postgres:15
+    restart: always
+    ports:
+      - "5433:5432"
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint:
+      [
+        "kafka-topics",
+        "--bootstrap-server", "${KAFKA_HOST}:${KAFKA_PORT}",
+        "--create",
+        "--topic", "${KAFKA_TOPIC}",
+        "--partitions", "1",
+        "--replication-factor", "1",
+        "--if-not-exists"
+      ]
+    restart: "no"
+
+  kafka-consumer:
+    build:
+      context: ..
+    command: python -m kafka_utils.run_consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      DB_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_HOST}:${KAFKA_PORT}
+
+  redis:
+    image: redis:7
+    ports:
+      - "6380:6379"

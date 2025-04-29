@@ -43,3 +43,6 @@ class MovementResponse(BaseModel):
     quantity_difference: int
     transit_seconds: int
 
+
+class ErrorResponse(BaseModel):
+    detail: str
