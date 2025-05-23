@@ -5,5 +5,3 @@ class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
 
 settings = Settings()
-
-

@@ -1,20 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from warehouse_service.db import SessionLocal
+from warehouse_service.db import get_db
 from warehouse_service.models import Movement
 from warehouse_service.schemas import StockResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@router.get("/{warehouse_id}/products/{product_id}", response_model=StockResponse)
+@router.get("/{warehouse_id}/products/{product_id}", response_model=StockResponse, summary="Текущий запас товара на складе")
 def get_stock(warehouse_id: str, product_id: str, db: Session = Depends(get_db)):
     arrivals = db.query(func.sum(Movement.quantity)).filter(
         Movement.warehouse_id == warehouse_id,

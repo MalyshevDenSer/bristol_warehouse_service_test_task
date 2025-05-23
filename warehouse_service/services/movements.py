@@ -1,20 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from warehouse_service.db import SessionLocal
+from warehouse_service.db import get_db
 from warehouse_service.models import Movement
 from warehouse_service.schemas import MovementResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@router.get("/{movement_id}", response_model=MovementResponse)
+@router.get("/{movement_id}", response_model=MovementResponse, summary="Получение информации о перемещении", description="Возвращает отправителя, получателя, время и количество")
 def get_movement(movement_id: str, db: Session = Depends(get_db)):
+    logger.info(f"Получен запрос перемещения: {movement_id}")
     movements = db.query(Movement).filter(Movement.movement_id == movement_id).all()
     if len(movements) != 2:
         raise HTTPException(status_code=404, detail="Перемещение не полное")
