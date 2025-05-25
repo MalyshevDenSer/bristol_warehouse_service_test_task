@@ -1,33 +1,39 @@
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from warehouse_service.db import Base, get_db
-from main import app
+import logging
 
-DATABASE_URL = "sqlite:///./test.db"
+import pytest_asyncio
+from asgi_lifespan import LifespanManager
+from httpx import AsyncClient, ASGITransport
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from kafka_utils.producer import KafkaProducerWrapper
+from warehouse_service.config import KAFKA_HOST, KAFKA_PORT
+from warehouse_service.db import AsyncSessionLocal
+from warehouse_service.logger import setup_logger
+from warehouse_service.main import app as fastapi_app
 
-@pytest.fixture(scope="session", autouse=True)
-def create_test_database():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
+logger = setup_logger(name='tests')
 
-@pytest.fixture(scope="function")
-def test_db_session():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-@app.dependency_overrides[get_db]  # noqa
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+@pytest_asyncio.fixture(scope="session")
+async def db_session():
+    async with AsyncSessionLocal() as session:
+        yield session
+    await session.close()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def async_client():
+    logging.debug('LifespanManager is going to start now!')
+    async with LifespanManager(fastapi_app) as manager:
+        async with AsyncClient(
+            transport=ASGITransport(app=manager.app),
+            base_url="http://test",
+        ) as client:
+            yield client
+
+
+@pytest_asyncio.fixture(scope="session")
+async def kafka_producer():
+    wrapper = KafkaProducerWrapper(f"{KAFKA_HOST}:{KAFKA_PORT}")
+    await wrapper.connect()
+    yield wrapper
+    await wrapper.disconnect()

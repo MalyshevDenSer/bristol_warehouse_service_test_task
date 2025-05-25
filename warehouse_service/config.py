@@ -1,7 +1,17 @@
-from pydantic import BaseSettings
+import os
 
-class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql://user:password@localhost/warehouse"
-    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
+from dotenv import load_dotenv
 
-settings = Settings()
+load_dotenv()
+
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
+REDIS_DB = os.getenv("REDIS_DB")
+TTL = int(os.getenv('TTL'))
+
+DB_URL = os.getenv('DB_URL')
+
+KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
+KAFKA_HOST = os.getenv('KAFKA_HOST')
+KAFKA_PORT = os.getenv('KAFKA_PORT')
+KAFKA_URL = f'{KAFKA_HOST}:{KAFKA_PORT}'

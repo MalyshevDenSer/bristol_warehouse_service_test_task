@@ -1,35 +1,39 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from warehouse_service.db import get_db
-from warehouse_service.models import Movement
-from warehouse_service.schemas import StockResponse
-import logging
+from uuid import UUID
 
-logger = logging.getLogger(__name__)
+from sqlalchemy import select, func, case
+from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter()
+from warehouse_service.logger import setup_logger
+from warehouse_service.models import MovementEvent
 
-@router.get("/{warehouse_id}/products/{product_id}", response_model=StockResponse, summary="Текущий запас товара на складе")
-def get_stock(warehouse_id: str, product_id: str, db: Session = Depends(get_db)):
-    arrivals = db.query(func.sum(Movement.quantity)).filter(
-        Movement.warehouse_id == warehouse_id,
-        Movement.product_id == product_id,
-        Movement.event == "arrival"
-    ).scalar() or 0
+logger = setup_logger("warehouse_service.services.stock")
 
-    departures = db.query(func.sum(Movement.quantity)).filter(
-        Movement.warehouse_id == warehouse_id,
-        Movement.product_id == product_id,
-        Movement.event == "departure"
-    ).scalar() or 0
 
-    quantity = arrivals - departures
-    if quantity < 0:
-        raise HTTPException(status_code=400, detail="Остаток ниже нуля, так нельзя")
-
-    return StockResponse(
-        warehouse_id=warehouse_id,
-        product_id=product_id,
-        quantity=quantity
+async def calculate_stock(db: AsyncSession, warehouse_id: UUID, product_id: UUID) -> int:
+    stmt = select(
+        func.coalesce(
+            func.sum(
+                case(
+                    (MovementEvent.event == "arrival", MovementEvent.quantity),
+                    (MovementEvent.event == "departure", -MovementEvent.quantity),
+                    else_=0
+                )
+            ),
+            0
+        )
+    ).where(
+        MovementEvent.warehouse_id == warehouse_id,
+        MovementEvent.product_id == product_id
     )
+
+    result = await db.scalar(stmt)
+    raw_quantity = result or 0
+    quantity = max(raw_quantity, 0)
+
+    if raw_quantity < 0:
+        logger.info(
+            f"Отрицательное значение остатков: склад {warehouse_id}, товар {product_id}, "
+            f"рассчитано {raw_quantity}, возвращаю 0"
+        )
+
+    return quantity

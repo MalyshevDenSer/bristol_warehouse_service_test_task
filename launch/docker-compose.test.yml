@@ -1,0 +1,22 @@
+services:
+  tests:
+    build:
+      context: ..
+    command: >
+      sh -c "
+        pytest -vv -s --tb=short -o log_cli=true -o log_cli_level=WARNING
+      "
+    environment:
+      CREATE_SCHEMA_FROM_MODELS: 1
+      DB_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+    depends_on:
+      kafka-consumer:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+  postgres:
+    volumes: []
